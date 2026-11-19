@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Self-Healing Docs</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Crect width=%2224%22 height=%2224%22 rx=%226%22 fill=%22%2322c55e%22/%3E%3Cpath d=%22M12 17v-6M9 14h6%22 stroke=%22white%22 stroke-width=%222%22/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg></div>
+    <div><h1>Self-Healing Docs</h1><p>Detect documentation drift and fix it automatically</p></div>
+  </div>
+  <div class="top-actions">
+    <span id="modeBadge" class="badge">Rule engine</span>
+    <button id="settingsBtn" class="btn small ghost">AI settings</button>
+    <button id="themeBtn" class="btn small ghost" title="Toggle theme">Theme</button>
+  </div>
+</header>
+
+<main class="layout">
+  <aside class="panel side">
+    <section>
+      <div class="step"><span>1</span>Load a project</div>
+      <p class="hint">Source code and Markdown docs together. Nothing is stored on the server.</p>
+      <button id="sampleBtn" class="btn full">Load sample project (with drift)</button>
+      <label class="drop" id="drop">
+        <input id="fileInput" type="file" multiple hidden>
+        <strong>Drop files or a .zip</strong><span>or click to browse</span>
+      </label>
+      <div class="row">
+        <input id="ghUrl" class="input" placeholder="https://github.com/owner/repo">
+        <button id="ghBtn" class="btn">Import</button>
+      </div>
+      <div id="projectInfo" class="project-info hidden"></div>
+    </section>
+
+    <section>
+      <div class="step"><span>2</span>Scan for drift</div>
+      <button id="scanBtn" class="btn primary big full" disabled>Scan documentation</button>
+    </section>
+
+    <section id="healthCard" class="health hidden">
+      <div class="score-wrap">
+        <svg viewBox="0 0 120 120" class="ring"><circle cx="60" cy="60" r="52" class="ring-bg"/><circle id="ringFg" cx="60" cy="60" r="52" class="ring-fg"/></svg>
+        <div class="score"><b id="scoreVal">0</b><span>health</span></div>
+      </div>
+      <div class="stats" id="stats"></div>
+    </section>
+
+    <section id="timelineCard" class="hidden">
+      <div class="step small-step">Healing timeline</div>
+      <ol id="timeline" class="timeline"></ol>
+    </section>
+  </aside>
+
+  <section class="panel main">
+    <div class="main-head">
+      <div class="tabs" id="mainTabs">
+        <button class="tab active" data-tab="issues">Issues <span id="issueCount" class="count">0</span></button>
+        <button class="tab" data-tab="diff">Diff preview</button>
+        <button class="tab" data-tab="files">Files</button>
+      </div>
+      <div class="row">
+        <button id="exportBtn" class="btn small" disabled>Download project (.zip)</button>
+      </div>
+    </div>
+
+    <div id="tab-issues" class="tab-pane">
+      <div id="empty" class="empty">
+        <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+        <h2>Keep your docs in sync with your code</h2>
+        <p>Load a project and scan it. The engine cross-checks every function, signature, route, env var, command, link and docstring in your docs against the real code, then proposes fixes you can review and apply.</p>
+      </div>
+      <div id="issuesUi" class="hidden">
+        <div class="toolbar">
+          <div class="filters">
+            <select id="sevFilter" class="input small"><option value="">All severities</option><option value="error">Errors</option><option value="warning">Warnings</option><option value="info">Info</option></select>
+            <select id="ruleFilter" class="input small"><option value="">All rules</option></select>
+            <label class="check"><input type="checkbox" id="selectAll"> Select all fixable</label>
+          </div>
+          <div class="row">
+            <button id="previewBtn" class="btn small" disabled>Preview fixes</button>
+            <button id="healBtn" class="btn small primary" disabled>Heal selected</button>
+            <button id="autoBtn" class="btn small primary" title="Apply every high-confidence fix and rescan">Auto-heal</button>
+          </div>
+        </div>
+        <div id="issues" class="issues"></div>
+      </div>
+    </div>
+
+    <div id="tab-diff" class="tab-pane hidden">
+      <div id="diffSummary" class="hint pad">Select issues and click “Preview fixes” to see the exact changes before applying them.</div>
+      <div id="diff" class="diff"></div>
+    </div>
+
+    <div id="tab-files" class="tab-pane hidden files-pane">
+      <ul id="fileList" class="file-list"></ul>
+      <div class="editor">
+        <div class="editor-head"><span id="editorPath" class="muted">Select a file</span>
+          <span class="hint">Edit code or docs, then rescan to see drift</span></div>
+        <textarea id="editor" class="code-input" spellcheck="false" disabled></textarea>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="settings" class="modal">
+  <form method="dialog">
+    <h3>AI settings <span class="muted">(optional)</span></h3>
+    <p class="hint">The rule engine fixes most drift without AI. An AI provider adds “AI fix” for issues the rules can't repair. Keys are kept in this browser only and sent per request.</p>
+    <label>Provider<select id="provider" class="input"></select></label>
+    <label>Model<input id="model" class="input" placeholder="default"></label>
+    <label>API key<input id="apiKey" class="input" type="password" placeholder="sk-..." autocomplete="off"></label>
+    <label>Base URL<input id="baseUrl" class="input" placeholder="default"></label>
+    <div class="row end"><button value="cancel" class="btn">Close</button><button id="saveSettings" value="save" class="btn primary">Save</button></div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
